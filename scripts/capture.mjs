@@ -3,7 +3,7 @@
 // Usage: node scripts/capture.mjs [--stills 2,5,9] [--video] [--url http://127.0.0.1:4173/]
 // Needs a running `npm run preview`, Playwright and ffmpeg.
 import { createRequire } from 'node:module';
-import { mkdirSync, rmSync } from 'node:fs';
+import { existsSync, mkdirSync, rmSync } from 'node:fs';
 import { execFileSync } from 'node:child_process';
 
 const require = createRequire(import.meta.url);
@@ -26,17 +26,24 @@ await page.evaluate(() => document.getElementById('loader').remove());
 
 let t = 0, frame = 0;
 const dt = 1 / FPS;
-if (video) { rmSync('out/frames', { recursive: true, force: true }); mkdirSync('out/frames', { recursive: true }); }
+// --resume keeps frames already on disk: the run is deterministic, so those
+// frames are re-simulated without rendering and only the missing ones are shot.
+const resume = process.argv.includes('--resume');
+if (video && !resume) rmSync('out/frames', { recursive: true, force: true });
+if (video) mkdirSync('out/frames', { recursive: true });
 const end = video ? DUR : Math.max(...stills, 0) + dt;
 const pending = [...stills].sort((a, b) => a - b);
 while (t < end) {
   // Stills only render the frames they need; video renders every frame and
   // waits a frame after each step so the software GPU never builds a backlog.
-  const needed = video || (pending.length && t + dt >= pending[0] - dt * 2);
+  const framePath = `out/frames/${String(frame).padStart(4, '0')}.jpg`;
+  const have = video && resume && existsSync(framePath);
+  const needed = (video && !have) || (pending.length && t + dt >= pending[0] - dt * 2);
   if (needed) await page.evaluate((d) => { window.__step(d); return new Promise(r => requestAnimationFrame(() => r())); }, dt);
   else await page.evaluate((d) => window.__advance(d), dt);
   t += dt;
-  if (video) await page.screenshot({ path: `out/frames/${String(frame++).padStart(4, '0')}.jpg`, quality: 92, type: 'jpeg', timeout: 180000 });
+  if (video && !have) await page.screenshot({ path: framePath, quality: 92, type: 'jpeg', timeout: 180000 });
+  if (video) frame++;
   while (pending.length && t >= pending[0]) {
     const s = pending.shift();
     await page.screenshot({ path: `out/still-${s}.png`, timeout: 180000 });
