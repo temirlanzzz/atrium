@@ -94,7 +94,11 @@ export function createStudio(renderer) {
     garment.position.copy(r.pos); garment.quaternion.copy(r.quat);
     scene.add(garment);
     onModel = false; anim = null; sizeK = curK = 1; hanger.visible = p.type !== 'pants';
-    camera.position.set(.5, 1.5, 4.6); controls.target.set(-.35, 1.1, 0);
+    // portrait screens put the panel at the bottom, so frame the model in the upper half
+    const portrait = camera.aspect < .9;
+    home.copy(portrait ? new THREE.Vector3(0, .55, 0) : new THREE.Vector3(0, 1.1, 0));
+    camera.position.set(portrait ? .3 : .5, portrait ? 1.2 : 1.5, portrait ? 6.6 : 4.6);
+    controls.target.set(portrait ? -.2 : -.35, home.y, 0);
     controls.autoRotate = false; controls.update();
   }
 
@@ -114,6 +118,7 @@ export function createStudio(renderer) {
     camFly = { t: 0, from: camera.position.clone(), fromT: controls.target.clone(), to: target.clone().add(new THREE.Vector3(.28, .06, .78)), toT: target };
   }
   let camFly = null;
+  const home = new THREE.Vector3(0, 1.1, 0);
 
   const wob = { v: 0, x: 0 };
   function update(dt) {
@@ -125,7 +130,7 @@ export function createStudio(renderer) {
       garment.position.y += Math.sin(Math.PI * e) * .35; // lift on an arc
       garment.quaternion.slerpQuaternions(anim.from.quat, anim.to.quat, e);
       garment.rotateY(Math.sin(Math.PI * e) * Math.PI * (anim.on ? 2 : -2) * e * (1 - e) * 1.2);
-      if (anim.t >= 1) { wob.v = 2.4; anim = null; if (onModel) controls.target.lerp(new THREE.Vector3(0, 1.1, 0), 1); }
+      if (anim.t >= 1) { wob.v = 2.4; anim = null; if (onModel) controls.target.copy(home); }
     }
     // a damped spring squash when cloth lands
     wob.v += (-wob.x * 120 - wob.v * 9) * dt; wob.x += wob.v * dt;
