@@ -7,7 +7,7 @@ and the camera flies inside; the piece opens in a fitting studio, where it
 jumps from a rail onto a mannequin. You can turn it, zoom into the weave, and
 change the colour and size.
 
-**Live:** https://temirlan.work/atrium/
+**Live:** https://temirlan.work/atrium/ · https://temirlanzzz.github.io/atrium/
 
 ## What is in it
 
