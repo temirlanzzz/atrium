@@ -1,4 +1,4 @@
-// Procedural textures. Nothing is downloaded: every map is drawn on a canvas.
+// Small procedural textures drawn on a canvas (stone noise, contact shadow).
 import * as THREE from 'three';
 
 function canvas(w, h = w) {
@@ -6,6 +6,8 @@ function canvas(w, h = w) {
   c.width = w; c.height = h;
   return [c, c.getContext('2d')];
 }
+
+const cache = {};
 
 function tex(c, { repeat = 1, srgb = false } = {}) {
   const t = new THREE.CanvasTexture(c);
