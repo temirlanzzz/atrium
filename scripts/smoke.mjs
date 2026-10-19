@@ -28,12 +28,12 @@ for (const [name, vp, mobile] of [['desktop', { width: 960, height: 600 }, false
   if (mobile) await page.touchscreen.tap(found[0], found[1]); else await page.mouse.click(found[0], found[1]);
   await page.waitForSelector('body.in-studio', { timeout: 300000 });
   await page.waitForTimeout(4000);
-  await page.click('#p-size button:nth-child(4)');
-  await page.click('#p-sw .sw:last-child');
+  if (await page.locator('#size-row').isVisible()) await page.click('#p-size button:nth-child(4)');
+  await page.click('#p-sw button:last-child');
   await page.click('#p-add');
   await page.waitForTimeout(1200);
   const n = await page.textContent('#bag-n');
-  console.log(name, 'bag', n, 'fit', await page.textContent('#p-fit'), 'try label', await page.textContent('#p-try'));
+  console.log(name, 'bag', n, 'product', await page.textContent('#p-name'), 'colour', await page.textContent('#p-sw button.on').catch(() => 'swatch'));
   if (n !== '1') errors.push(`${name}: bag count ${n}`);
   await page.screenshot({ path: `out/smoke-${name}-studio.png` });
   await page.click('#p-close');

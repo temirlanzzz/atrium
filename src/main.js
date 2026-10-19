@@ -3,8 +3,8 @@ import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment
 import { createTowers, FH, A } from './towers.js';
 import { createStudio, SIZES } from './studio.js';
 import { createPost } from './post.js';
-import { skyTexture } from './textures.js';
-import { DEPARTMENTS, collectionOf } from './catalog.js';
+import { SCANS, loadEnvironment, loadScan, onProgress } from './assets.js';
+import { DEPARTMENTS, collectionOf, variantNames } from './catalog.js';
 
 const $ = (s) => document.querySelector(s);
 const CAPTURE = new URLSearchParams(location.search).has('capture');
@@ -16,26 +16,25 @@ const canvas = $('#scene');
 const renderer = new THREE.WebGLRenderer({ canvas, antialias: false, powerPreference: 'high-performance', preserveDrawingBuffer: CAPTURE });
 renderer.setPixelRatio(Math.min(devicePixelRatio, CAPTURE ? 1 : 1.75));
 renderer.toneMapping = THREE.ACESFilmicToneMapping;
-renderer.toneMappingExposure = .92;
+renderer.toneMappingExposure = 1;
 renderer.shadowMap.enabled = true;
 renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 
+// The courtyard is lit by a real overcast HDRI sky; the shaft below fades into
+// mist. Warm lamps that travel with the camera stand in for the shop lighting
+// that every window would cast onto the garments facing the courtyard.
 const scene = new THREE.Scene();
-scene.background = skyTexture();
-scene.fog = new THREE.FogExp2(0x040507, .034);
-const pmrem = new THREE.PMREMGenerator(renderer);
-const env = pmrem.fromScene(new RoomEnvironment(), .04).texture;
-scene.environment = env;
-scene.environmentIntensity = .32;
-scene.add(new THREE.HemisphereLight(0xc7d0de, 0x0b0b0d, .25));
-const sun = new THREE.DirectionalLight(0xe6ecf5, .5); sun.position.set(3, 10, 2); scene.add(sun);
-// Courtyard lamps that travel with the camera: every garment faces the centre,
-// so these light their fronts wherever you are in the fall.
-const lampLow = new THREE.PointLight(0xffe2c4, 60, 34, 1.4), lampHigh = new THREE.PointLight(0xdfe8ff, 35, 30, 1.4);
+scene.fog = new THREE.FogExp2(0x60676d, .03);
+scene.backgroundIntensity = .9;
+const sun = new THREE.DirectionalLight(0xfff1e2, .9); sun.position.set(4, 10, 3); scene.add(sun);
+const lampLow = new THREE.PointLight(0xffdcb8, 26, 26, 1.6), lampHigh = new THREE.PointLight(0xffe7cf, 18, 24, 1.6);
 scene.add(lampLow, lampHigh);
+const fullScans = {};
+// The product page loads full-detail scans on demand (the windows use light LODs).
+const fullScan = (k) => fullScans[k] ? Promise.resolve(fullScans[k]) : loadScan(k).then((s) => (fullScans[k] = s));
 
 const camera = new THREE.PerspectiveCamera(62, 1, .05, 170);
-let towers, studio, post, streaks;
+let towers, studio, post;
 
 /* ---------------- state ---------------- */
 const S = {
@@ -43,31 +42,6 @@ const S = {
   px: 0, py: 0, pointer: new THREE.Vector2(-9, -9), pointerMoved: false, hover: null, input: 0,
   keys: new Set(), anim: null, bag: 0, product: null, lastPick: 0
 };
-
-/* ---------------- speed streaks ---------------- */
-function makeStreaks(n = 520) {
-  const pos = new Float32Array(n * 6), data = [];
-  for (let i = 0; i < n; i++) {
-    const r = 1.2 + Math.random() * (A - 1.6), a = Math.random() * Math.PI * 2;
-    data.push({ x: Math.cos(a) * r, z: Math.sin(a) * r, y: (Math.random() - .5) * 50 });
-  }
-  const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.BufferAttribute(pos, 3));
-  const m = new THREE.LineBasicMaterial({ color: 0xdfe8ff, transparent: true, opacity: .2, blending: THREE.AdditiveBlending, depthWrite: false, fog: true });
-  const lines = new THREE.LineSegments(g, m); lines.frustumCulled = false;
-  return {
-    lines, shift(dy) { for (const d of data) d.y += dy; },
-    update(camY, v) {
-      const L = clamp(Math.abs(v) * .09, .04, 5);
-      for (let i = 0; i < n; i++) {
-        const d = data[i];
-        if (d.y > camY + 25) d.y -= 50; else if (d.y < camY - 25) d.y += 50;
-        pos.set([d.x, d.y, d.z, d.x, d.y + L * Math.sign(v || 1), d.z], i * 6);
-      }
-      g.attributes.position.needsUpdate = true;
-      m.opacity = .06 + Math.min(Math.abs(v) / 18, 1) * .5;
-    }
-  };
-}
 
 /* ---------------- layout ---------------- */
 function resize() {
@@ -82,13 +56,18 @@ addEventListener('resize', resize);
 /* ---------------- build ---------------- */
 async function build() {
   const bar = $('#load-bar'), step = (p, label) => { bar.style.transform = `scaleX(${p})`; $('#load-label').textContent = label; return new Promise(r => setTimeout(r, CAPTURE ? 0 : 30)); };
-  await step(.1, 'pouring concrete');
-  towers = createTowers(scene);
-  await step(.55, 'hanging the collection');
-  streaks = makeStreaks(); scene.add(streaks.lines);
-  studio = createStudio(renderer);
-  studio.scene.environment = env; studio.scene.environmentIntensity = .4;
-  await step(.8, 'lighting the windows');
+  onProgress((p) => { bar.style.transform = `scaleX(${.05 + p * .75})`; });
+  await step(.05, 'loading the sky');
+  const { sky, env, pmrem } = await loadEnvironment(renderer);
+  scene.background = sky; scene.environment = env;
+  $('#load-label').textContent = 'unpacking the collection';
+  const lod = {};
+  await Promise.all(Object.keys(SCANS).map(async (k) => { lod[k] = await loadScan(k, { lod: true }); variantNames[k] = lod[k].variants; }));
+  await step(.85, 'dressing the windows');
+  towers = createTowers(scene, lod);
+  studio = createStudio(renderer, fullScans);
+  studio.scene.environment = pmrem.fromScene(new RoomEnvironment(), .04).texture; studio.scene.environmentIntensity = .55;
+  await step(.92, 'lighting the windows');
   post = createPost(renderer, scene, camera);
   resize();
   S.roofY = towers.update(0, false, 0) || 0;
@@ -164,6 +143,13 @@ function flipLook() {
   $('#flip').textContent = S.look < 0 ? 'Look up ↑' : 'Look down ↓';
 }
 $('#flip').addEventListener('click', flipLook);
+// Department links turn you to face that tower (the facade "ahead" on screen).
+const DEPT_YAW = [0, -Math.PI / 2, Math.PI, Math.PI / 2];
+document.querySelectorAll('#nav a').forEach((a, i) => a.addEventListener('click', (e) => {
+  e.preventDefault(); if (S.mode !== 'fall') return;
+  let y = DEPT_YAW[i]; while (y - S.yaw > Math.PI) y -= Math.PI * 2; while (S.yaw - y > Math.PI) y += Math.PI * 2;
+  S.yawTarget = y; S.yawV = 0; S.input = 0;
+}));
 
 const raycaster = new THREE.Raycaster();
 function pickHover() {
@@ -176,15 +162,18 @@ function pickHover() {
   const tag = $('#tag');
   if (valid) {
     const p = valid.product;
-    tag.innerHTML = `<small>${p.dept.name} · Nº ${p.id}</small><b>${p.name}</b><span>$${p.price}</span>`;
+    tag.innerHTML = `<small>${p.brand}</small><b>${p.name}</b><span>${money(p.price)}</span>`;
     tag.classList.add('on');
     canvas.style.cursor = 'pointer';
   } else { tag.classList.remove('on'); canvas.style.cursor = ''; }
 }
 
+const money = (n) => '$' + n.toLocaleString('en-US');
+
 /* ---------------- bay → studio → back ---------------- */
 function enterBay(h) {
   S.mode = 'zoom'; S.product = h.product;
+  S.ready = h.product.scan ? fullScan(h.product.type) : Promise.resolve();
   $('#tag').classList.remove('on'); towers.setHover(-1);
   const view = towers.bayView(h.bay);
   const m = new THREE.Matrix4().lookAt(view.eye, view.target, new THREE.Vector3(0, 1, 0));
@@ -195,18 +184,18 @@ function enterBay(h) {
 function showStudio() {
   S.mode = 'studio';
   studio.open(S.product);
-  post.setScene(studio.scene, studio.camera);
+  post.setScene(studio.scene, studio.camera); post.bloom.enabled = false;
   studio.controls.enabled = true;
   fillPanel(S.product);
   document.body.classList.add('in-studio'); document.body.classList.remove('zooming');
-  setTimeout(() => { if (S.mode === 'studio' && !studio.onModel) setTryOn(true); }, CAPTURE ? 0 : 650);
+  if (!S.product.scan && S.product.type !== 'pants') setTimeout(() => { if (S.mode === 'studio' && !studio.onModel) setTryOn(true); }, CAPTURE ? 0 : 650);
 }
 
 function exitStudio() {
   if (S.mode !== 'studio') return;
   S.mode = 'fadeout';
   S.anim = { t: 0, dur: .35, then: () => {
-    post.setScene(scene, camera); studio.controls.enabled = false;
+    post.setScene(scene, camera); post.bloom.enabled = true; studio.controls.enabled = false;
     document.body.classList.remove('in-studio');
     S.mode = 'unzoom';
     const back = S.lastFall;
@@ -214,28 +203,40 @@ function exitStudio() {
   } };
 }
 
+// Real colourways for scans (KHR_materials_variants), fabric colours for garments.
+const SIZED = { shoe: ['39', '40', '41', '42', '43'], watch: null, sunglasses: null, corset: ['XS', 'S', 'M', 'L', 'XL'] };
 function fillPanel(p) {
   $('#p-dept').textContent = `${p.dept.name} · ${p.collection}`;
+  $('#p-brand').textContent = p.brand;
   $('#p-name').textContent = p.name;
-  $('#p-price').textContent = `$${p.price}`;
-  $('#p-id').textContent = `Nº ${p.id} · level −${String(Math.abs(p.floor)).padStart(3, '0')}`;
+  $('#p-price').textContent = money(p.price);
+  $('#p-id').textContent = `Item ${p.id} · level ${Math.abs(p.floor)}`;
   $('#p-desc').textContent = p.desc;
-  $('#p-sw').innerHTML = p.swatches.map((c, i) => `<button class="sw${i ? '' : ' on'}" style="--c:${c}" data-c="${c}" aria-label="Colour ${i + 1}"></button>`).join('');
-  $('#p-size').innerHTML = SIZES.map(([s], i) => `<button class="${i === 2 ? 'on' : ''}" data-i="${i}">${s}</button>`).join('');
-  $('#p-fit').textContent = 'Fit: ' + SIZES[2][2];
+  const cap = (t) => t.replace(/\b\w/g, (c) => c.toUpperCase());
+  if (p.scan) {
+    $('#p-sw').innerHTML = p.swatches.length ? p.swatches.map((n, i) => `<button class="vt${i === p.variant ? ' on' : ''}" data-v="${i}">${cap(n)}</button>`).join('') : '<span class="one">One colour</span>';
+  } else {
+    $('#p-sw').innerHTML = p.swatches.map((c, i) => `<button class="sw${i ? '' : ' on'}" style="--c:${c}" data-c="${c}" aria-label="Colour ${i + 1}"></button>`).join('');
+  }
+  const sizes = p.scan ? SIZED[p.type] : SIZES.map(([s]) => s);
+  $('#size-row').hidden = !sizes;
+  if (sizes) $('#p-size').innerHTML = sizes.map((s, i) => `<button class="${i === 2 ? 'on' : ''}" data-i="${i}">${s}</button>`).join('');
+  $('#p-fit').textContent = p.scan ? '' : 'Fit: ' + SIZES[2][2];
+  $('#p-try').hidden = p.scan || p.type === 'pants';
   setTryOnLabel(false);
 }
 $('#p-sw').addEventListener('click', (e) => {
-  const b = e.target.closest('.sw'); if (!b) return;
-  document.querySelectorAll('#p-sw .sw').forEach(x => x.classList.toggle('on', x === b));
-  studio.setColor(b.dataset.c);
+  const b = e.target.closest('.sw, .vt'); if (!b) return;
+  document.querySelectorAll('#p-sw button').forEach(x => x.classList.toggle('on', x === b));
+  if (b.dataset.v) studio.setVariant(+b.dataset.v); else studio.setColor(b.dataset.c);
 });
 $('#p-size').addEventListener('click', (e) => {
   const b = e.target.closest('button'); if (!b) return;
   document.querySelectorAll('#p-size button').forEach(x => x.classList.toggle('on', x === b));
+  if (S.product.scan) return;
   const [, k, fit] = SIZES[+b.dataset.i]; studio.setSize(k); $('#p-fit').textContent = 'Fit: ' + fit;
 });
-function setTryOnLabel(on) { $('#p-try').textContent = on ? 'Back to the rail' : 'Try it on the model'; }
+function setTryOnLabel(on) { $('#p-try').textContent = on ? 'Show on the rail' : 'Show on the form'; }
 function setTryOn(on) { setTryOnLabel(studio.tryOn(on)); }
 $('#p-try').addEventListener('click', () => setTryOn(!studio.onModel));
 $('#p-detail').addEventListener('click', () => studio.focusDetail());
@@ -246,17 +247,26 @@ $('#p-add').addEventListener('click', (e) => {
   const b = $('#bag'), fly = document.createElement('i'), r = e.currentTarget.getBoundingClientRect(), t = b.getBoundingClientRect();
   fly.className = 'fly'; fly.style.left = r.left + r.width / 2 + 'px'; fly.style.top = r.top + 'px';
   fly.style.setProperty('--dx', t.left + t.width / 2 - r.left - r.width / 2 + 'px'); fly.style.setProperty('--dy', t.top - r.top + 'px');
-  fly.style.background = getComputedStyle(document.querySelector('#p-sw .sw.on')).getPropertyValue('--c');
+  const sw = document.querySelector('#p-sw .sw.on');
+  fly.style.background = sw ? getComputedStyle(sw).getPropertyValue('--c') : '#1a1a1a';
   document.body.appendChild(fly); setTimeout(() => fly.remove(), 900);
   setTimeout(() => { $('#bag-n').textContent = S.bag; b.classList.remove('pop'); void b.offsetWidth; b.classList.add('pop'); }, 780);
+  const toast = $('#toast'); toast.textContent = `Added to bag · ${S.product.name}`; toast.classList.add('on'); clearTimeout(toast._h); toast._h = setTimeout(() => toast.classList.remove('on'), 2200);
 });
 
 /* ---------------- capture script (deterministic demo reel) ---------------- */
-const SHOT = new URLSearchParams(location.search).get('shot');
+// ?shot=<type> opens that kind of product; ?shot=reel is the portfolio reel
+// (fall, turn to Shoes, open the sneaker, switch through its real colourways).
+const SHOT0 = new URLSearchParams(location.search).get('shot');
+const SHOT = SHOT0 === 'reel' ? 'shoe' : SHOT0;
 function captureScript(t) {
   if (SHOT === 'up') { if (S.mode === 'fall' && S.look < 0) flipLook(); return; }
+  if (SHOT === 'still') return;
   if (S.mode === 'fall') {
-    S.yawV += .0009;
+    // a product-type shot turns to face that department first
+    const di = SHOT ? DEPARTMENTS.findIndex(d => d.types.includes(SHOT)) : -1;
+    if (di >= 0 && t > 4 && t < 4.1) S.yawTarget = DEPT_YAW[di];
+    S.yawV += di >= 0 ? 0 : .0009;
     if (t > 4.2 && t < 5.4) S.v = Math.min(S.v + .9, 16);
     if (t > 7.1 && !S.scripted) {
       S.scripted = true;
@@ -266,14 +276,21 @@ function captureScript(t) {
         S.pointer.set(x, y); pickHover();
         const p = S.hover?.product;
         if (p) any ??= S.hover;
-        if (p && (p.type === 'coat' || p.type === 'dress') && new THREE.Color(p.color).getHSL({}).l > .3) { best = S.hover; break; }
+        if (p && (SHOT ? p.type === SHOT : p.type === 'coat') && (p.scan || new THREE.Color(p.color).getHSL({}).l > .25)) { best = S.hover; break; }
       }
       S.hover = best || any;
       if (S.hover) enterBay(S.hover);
     }
   }
   if (S.mode === 'studio') {
-    studio.controls.autoRotate = true; studio.controls.autoRotateSpeed = 3.2;
+    studio.controls.autoRotate = true; studio.controls.autoRotateSpeed = 2.4;
+    if (SHOT0 === 'reel') {
+      const vt = document.querySelectorAll('#p-sw .vt');
+      if (t > 10.6 && !S.v1) { S.v1 = true; vt[1]?.click(); }
+      if (t > 12.4 && !S.v2) { S.v2 = true; vt[2]?.click(); }
+      if (t > 13.4 && !S.added) { S.added = true; $('#p-add').click(); }
+      return;
+    }
     if (t > 12.2 && !S.detail) { S.detail = true; studio.focusDetail(); }
   }
 }
@@ -308,7 +325,8 @@ function step(dt, render = true) {
     S.y -= S.v * dt;
     const roof = towers.base * FH - 1.6;
     if (S.y > roof) { S.y = roof; S.v = Math.max(S.v, 0); }
-    S.yaw += S.yawV * dt + (S.input > 3 ? dt * .03 : 0);
+    if (S.yawTarget !== undefined) { S.yaw = damp(S.yaw, S.yawTarget, 3.5, dt); if (Math.abs(S.yaw - S.yawTarget) < .002) S.yawTarget = undefined; }
+    S.yaw += S.yawV * dt + (S.input > 3 && S.yawTarget === undefined ? dt * .03 : 0);
     S.yawV = damp(S.yawV, 0, 3, dt);
     S.pitch = damp(S.pitch, S.look < 0 ? -.82 : .9, 3.2, dt);
     S.fov = damp(S.fov, 62 + Math.min(Math.abs(S.v), 30) * .45, 4, dt);
@@ -322,7 +340,7 @@ function step(dt, render = true) {
     camera.quaternion.slerpQuaternions(a.fromQ, a.toQ, e);
     camera.fov = THREE.MathUtils.lerp(a.fromF, 38, e); camera.updateProjectionMatrix();
     post.grade.uniforms.uFade.value = clamp((a.t - .78) / .22, 0, 1);
-    if (a.t >= 1) { showStudio(); }
+    if (a.t >= 1 && !S.waiting) { S.waiting = true; S.ready.then(() => { S.waiting = false; showStudio(); }); }
   } else if (S.mode === 'studio') {
     post.grade.uniforms.uFade.value = damp(post.grade.uniforms.uFade.value, 0, 6, dt);
     studio.update(dt);
@@ -346,9 +364,8 @@ function step(dt, render = true) {
   // towers follow the camera's depth; rebasing shifts everything up together
   const camY = camera.position.y;
   const shift = towers.update(camY, S.look > 0 && S.mode === 'fall', dt);
-  if (shift) { S.y += shift; camera.position.y += shift; streaks.shift(shift); if (S.lastFall) S.lastFall.y += shift; }
+  if (shift) { S.y += shift; camera.position.y += shift; if (S.lastFall) S.lastFall.y += shift; }
   lampLow.position.set(0, camera.position.y - 5, 0); lampHigh.position.set(0, camera.position.y + 4, 0);
-  streaks.update(camera.position.y, S.mode === 'fall' || S.mode === 'intro' ? S.v : 0);
   towers.uniforms.uSway.value = .012 + Math.min(Math.abs(S.v) / 25, 1) * .07;
   post.grade.uniforms.uSpeed.value = damp(post.grade.uniforms.uSpeed.value, Math.min(Math.abs(S.mode === 'fall' || S.mode === 'intro' ? S.v : 0) / 24, 1), 5, dt);
 
@@ -360,11 +377,10 @@ function step(dt, render = true) {
   // HUD
   if (hud) {
     const f = towers.floorAt(camera.position.y);
-    $('#depth').textContent = '−' + String(Math.max(0, f)).padStart(4, '0');
+    $('#depth').textContent = String(Math.max(0, f));
     $('#coll').textContent = collectionOf(Math.max(0, f)).name;
     const d = facingDept();
-    $('#dept').textContent = d.name; $('#dept').style.setProperty('--c', d.color);
-    $('#speed').style.transform = `scaleX(${Math.min(Math.abs(S.v) / 30, 1)})`;
+    if ($('#dept').textContent !== d.name) { $('#dept').textContent = d.name; document.querySelectorAll('#nav a').forEach((a, i) => a.classList.toggle('on', DEPARTMENTS[i] === d)); }
   }
   const tag = $('#tag');
   if (tag.classList.contains('on')) {
@@ -382,6 +398,6 @@ function frame(now) {
 
 window.__ready = build().then(() => {
   if (!CAPTURE) requestAnimationFrame(frame);
-  else { window.__step = (dt) => step(dt); window.__advance = (dt) => step(dt, false); }
+  else { window.__step = (dt) => step(dt); window.__advance = (dt) => step(dt, false); window.__S = S; window.__post = post; window.__studio = studio; }
   document.body.classList.add('ready');
 });

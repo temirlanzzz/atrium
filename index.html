@@ -3,150 +3,167 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>ATRIUM — fall into the collection</title>
-<meta name="description" content="A vertical fashion store in three.js: fall through a courtyard of four towers where every lit window is a garment, then try it on a mannequin.">
-<meta name="theme-color" content="#050608">
-<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' fill='%23050608'/%3E%3Cpath d='M8 4v24M24 4v24M4 8h24M4 24h24' stroke='%23ffcf9a' stroke-width='2'/%3E%3C/svg%3E">
+<title>ATRIUM — the vertical department store</title>
+<meta name="description" content="A vertical department store in three.js: fall through a courtyard of four stone towers where every lit window is a product, then open it on a real product page.">
+<meta name="theme-color" content="#f4f2ee">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' fill='%23111'/%3E%3Cpath d='M8 4v24M24 4v24M4 8h24M4 24h24' stroke='%23fff' stroke-width='2'/%3E%3C/svg%3E">
 <style>
-  :root { --ink: #f3efe8; --mute: rgba(243, 239, 232, .55); --line: rgba(243, 239, 232, .14); --glass: rgba(12, 13, 16, .62); --warm: #ffcf9a;
-    --sans: "Helvetica Neue", Helvetica, Arial, system-ui, sans-serif; --mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace; }
+  :root { --ink: #141414; --mute: #6f6b66; --line: rgba(20, 20, 20, .1); --paper: #fbfaf8; --glass: rgba(251, 250, 248, .82);
+    --sans: "Helvetica Neue", Helvetica, Arial, system-ui, sans-serif; --serif: "Didot", "Bodoni 72", "Playfair Display", Georgia, serif; }
   * { box-sizing: border-box; }
-  html, body { margin: 0; height: 100%; background: #050608; color: var(--ink); font-family: var(--sans); overflow: hidden; -webkit-font-smoothing: antialiased; }
+  html, body { margin: 0; height: 100%; background: #dcdad6; color: var(--ink); font-family: var(--sans); overflow: hidden; -webkit-font-smoothing: antialiased; }
   #scene { position: fixed; inset: 0; width: 100%; height: 100%; display: block; touch-action: none; }
   button { font: inherit; color: inherit; cursor: pointer; }
-  .hud { position: fixed; z-index: 2; pointer-events: none; transition: opacity .6s ease; }
-  .hud * { pointer-events: auto; }
-  body.in-studio .fall-only, body.zooming .fall-only, body:not(.ready) .hud { opacity: 0; pointer-events: none; }
-  body.in-studio .fall-only *, body.zooming .fall-only * { pointer-events: none; }
+  [hidden] { display: none !important; }
+  .fall-only { transition: opacity .5s ease; }
+  body.in-studio .fall-only, body.zooming .fall-only, body:not(.ready) .ui { opacity: 0; pointer-events: none; }
 
-  #brand { top: 22px; left: 26px; display: flex; gap: 14px; align-items: baseline; }
-  #brand b { font-weight: 600; letter-spacing: .5em; font-size: 15px; }
-  #brand span { font-family: var(--mono); font-size: 10px; letter-spacing: .14em; color: var(--mute); text-transform: uppercase; }
-  #top-r { top: 16px; right: 18px; display: flex; gap: 8px; }
-  .chip { background: var(--glass); border: 1px solid var(--line); backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px); border-radius: 999px; padding: 9px 15px;
-    font-family: var(--mono); font-size: 11px; letter-spacing: .1em; text-transform: uppercase; }
-  .chip:hover { border-color: rgba(255, 207, 154, .5); }
-  #bag { display: inline-flex; gap: 8px; align-items: center; }
-  #bag-n { background: var(--warm); color: #111; border-radius: 99px; min-width: 18px; height: 18px; display: inline-grid; place-items: center; font-size: 10px; font-weight: 700; }
-  #bag.pop { animation: pop .5s cubic-bezier(.3, 1.8, .5, 1); }
-  @keyframes pop { 40% { transform: scale(1.18); } }
+  /* store header */
+  #bar { position: fixed; z-index: 3; top: 0; left: 0; right: 0; height: 60px; display: flex; align-items: center; gap: 28px; padding: 0 24px;
+    background: var(--glass); backdrop-filter: blur(18px) saturate(1.2); -webkit-backdrop-filter: blur(18px) saturate(1.2); border-bottom: 1px solid var(--line); }
+  #logo { font-family: var(--serif); font-size: 24px; letter-spacing: .32em; font-weight: 400; }
+  #nav { display: flex; gap: 22px; flex: 1; justify-content: center; }
+  #nav a { color: var(--mute); text-decoration: none; font-size: 13px; letter-spacing: .02em; padding: 20px 0; border-bottom: 1px solid transparent; transition: color .2s, border-color .2s; }
+  #nav a:hover, #nav a.on { color: var(--ink); border-color: var(--ink); }
+  .tools { display: flex; gap: 8px; align-items: center; }
+  .btn { background: transparent; border: 1px solid var(--line); border-radius: 999px; padding: 8px 14px; font-size: 12.5px; }
+  .btn:hover { border-color: var(--ink); }
+  #bag { display: inline-flex; gap: 8px; align-items: center; background: var(--ink); color: #fff; border-color: var(--ink); }
+  #bag-n { font-variant-numeric: tabular-nums; }
+  #bag.pop { animation: pop .45s cubic-bezier(.3, 1.6, .5, 1); }
+  @keyframes pop { 40% { transform: scale(1.12); } }
 
-  #meter { left: 26px; bottom: 24px; font-family: var(--mono); text-transform: uppercase; }
-  #meter small { display: block; font-size: 10px; letter-spacing: .2em; color: var(--mute); margin-bottom: 6px; }
-  #depth { font-size: clamp(34px, 5vw, 58px); letter-spacing: .02em; font-weight: 300; line-height: 1; font-variant-numeric: tabular-nums; }
-  #meter .row { display: flex; gap: 18px; margin-top: 10px; font-size: 11px; letter-spacing: .12em; }
-  #meter .row span { color: var(--mute); }
-  #dept { color: var(--c, var(--warm)); text-shadow: 0 0 18px var(--c); }
-  #speedbar { margin-top: 12px; width: 180px; height: 2px; background: var(--line); overflow: hidden; }
-  #speed { height: 100%; background: linear-gradient(90deg, var(--warm), #fff); transform-origin: left; transform: scaleX(0); }
-  #hint { right: 26px; bottom: 24px; text-align: right; font-family: var(--mono); font-size: 10px; letter-spacing: .16em; color: var(--mute); text-transform: uppercase; line-height: 2; }
-  #hint kbd { font-family: inherit; color: var(--ink); border: 1px solid var(--line); border-radius: 4px; padding: 1px 5px; }
+  #where { position: fixed; z-index: 2; left: 24px; bottom: 22px; background: var(--glass); backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px);
+    border: 1px solid var(--line); border-radius: 14px; padding: 12px 16px; min-width: 210px; }
+  #where small { display: block; font-size: 11px; color: var(--mute); letter-spacing: .04em; }
+  #where b { display: block; font-weight: 500; font-size: 15px; margin: 3px 0 2px; }
+  #where span { font-size: 12.5px; color: var(--mute); }
+  #depth { font-variant-numeric: tabular-nums; }
+  #hint { position: fixed; z-index: 2; right: 24px; bottom: 26px; font-size: 12px; color: rgba(255, 255, 255, .92); text-align: right; line-height: 1.7; text-shadow: 0 1px 8px rgba(0, 0, 0, .35); }
 
-  #title { position: fixed; inset: 0; z-index: 1; display: grid; place-items: center; pointer-events: none; text-align: center; opacity: 0; transition: opacity 1.2s ease; }
+  #title { position: fixed; inset: 0; z-index: 1; display: grid; place-items: center; pointer-events: none; text-align: center; opacity: 0; transition: opacity 1.2s ease; color: #fff; }
   #title.show { opacity: 1; }
-  #title h1 { margin: 0; font-weight: 200; font-size: clamp(54px, 13vw, 190px); letter-spacing: .32em; padding-left: .32em; line-height: .9; text-shadow: 0 10px 60px rgba(0, 0, 0, .6); }
-  #title p { margin: 20px 0 0; font-family: var(--mono); font-size: 11px; letter-spacing: .4em; text-transform: uppercase; color: var(--mute); }
+  #title h1 { margin: 0; font-family: var(--serif); font-weight: 400; font-size: clamp(56px, 12vw, 170px); letter-spacing: .28em; padding-left: .28em; text-shadow: 0 6px 50px rgba(0, 0, 0, .35); }
+  #title p { margin: 14px 0 0; font-size: 14px; letter-spacing: .2em; text-transform: uppercase; text-shadow: 0 2px 16px rgba(0, 0, 0, .4); }
 
-  #tag { position: fixed; left: 0; top: 0; z-index: 3; pointer-events: none; background: rgba(8, 9, 11, .78); border: 1px solid var(--line); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
-    padding: 10px 13px; border-radius: 10px; min-width: 190px; opacity: 0; transition: opacity .18s ease; will-change: transform; }
+  #tag { position: fixed; left: 0; top: 0; z-index: 4; pointer-events: none; background: #fff; box-shadow: 0 14px 40px rgba(0, 0, 0, .18); border-radius: 10px;
+    padding: 11px 14px; min-width: 200px; opacity: 0; transition: opacity .15s; will-change: transform; }
   #tag.on { opacity: 1; }
-  #tag small { display: block; font-family: var(--mono); font-size: 9.5px; letter-spacing: .14em; color: var(--mute); text-transform: uppercase; }
-  #tag b { display: block; font-weight: 500; font-size: 14px; margin: 4px 0 2px; }
-  #tag span { font-family: var(--mono); color: var(--warm); font-size: 12px; }
+  #tag small { display: block; font-size: 11px; color: var(--mute); text-transform: uppercase; letter-spacing: .08em; }
+  #tag b { display: block; font-weight: 500; font-size: 14px; margin: 3px 0; }
+  #tag span { font-size: 13px; }
 
-  /* product panel */
-  #panel { position: fixed; z-index: 4; top: 50%; right: 28px; width: min(380px, calc(100vw - 32px)); transform: translate(30px, -50%); opacity: 0; pointer-events: none;
-    background: var(--glass); border: 1px solid var(--line); backdrop-filter: blur(22px); -webkit-backdrop-filter: blur(22px); border-radius: 18px; padding: 24px;
-    transition: opacity .5s ease .25s, transform .7s cubic-bezier(.2, .8, .2, 1) .25s; }
-  body.in-studio #panel { opacity: 1; transform: translate(0, -50%); pointer-events: auto; }
-  #p-dept, #p-id { font-family: var(--mono); font-size: 10px; letter-spacing: .16em; text-transform: uppercase; color: var(--mute); }
-  #p-name { font-weight: 300; font-size: 30px; line-height: 1.08; margin: 10px 0 6px; letter-spacing: -.01em; }
-  #p-price { font-family: var(--mono); font-size: 18px; color: var(--warm); }
-  #p-desc { font-size: 13.5px; line-height: 1.55; color: rgba(243, 239, 232, .78); margin: 14px 0 18px; }
-  .lbl { font-family: var(--mono); font-size: 10px; letter-spacing: .16em; text-transform: uppercase; color: var(--mute); margin: 14px 0 8px; display: flex; justify-content: space-between; }
-  #p-sw { display: flex; gap: 9px; }
-  .sw { width: 28px; height: 28px; border-radius: 50%; border: 0; background: var(--c); box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .2); outline: 1px solid transparent; outline-offset: 3px; transition: outline-color .2s; }
+  /* product page */
+  #panel { position: fixed; z-index: 5; top: 76px; right: 20px; bottom: 20px; width: min(400px, calc(100vw - 32px)); background: var(--paper); border-radius: 16px;
+    box-shadow: 0 24px 70px rgba(0, 0, 0, .14); padding: 26px 26px 20px; overflow: auto; opacity: 0; transform: translateX(24px); pointer-events: none;
+    transition: opacity .45s ease .2s, transform .6s cubic-bezier(.2, .8, .2, 1) .2s; }
+  body.in-studio #panel { opacity: 1; transform: none; pointer-events: auto; }
+  #p-dept { font-size: 11.5px; color: var(--mute); letter-spacing: .04em; }
+  #p-brand { font-size: 12px; text-transform: uppercase; letter-spacing: .14em; margin-top: 14px; font-weight: 600; }
+  #p-name { font-family: var(--serif); font-weight: 400; font-size: 28px; line-height: 1.12; margin: 6px 0 10px; }
+  #p-price { font-size: 17px; }
+  #p-price small { color: var(--mute); font-size: 12px; margin-left: 8px; }
+  #p-desc { font-size: 13.5px; line-height: 1.6; color: #45413c; margin: 14px 0 6px; }
+  .lbl { font-size: 12px; color: var(--mute); margin: 18px 0 8px; display: flex; justify-content: space-between; }
+  #p-sw { display: flex; gap: 8px; flex-wrap: wrap; }
+  .sw { width: 30px; height: 30px; border-radius: 50%; border: 0; background: var(--c); box-shadow: inset 0 0 0 1px rgba(0, 0, 0, .12); outline: 1px solid transparent; outline-offset: 3px; }
   .sw.on { outline-color: var(--ink); }
+  .vt { border: 1px solid var(--line); background: #fff; border-radius: 8px; padding: 8px 12px; font-size: 12.5px; }
+  .vt.on { border-color: var(--ink); box-shadow: inset 0 0 0 1px var(--ink); }
+  .one { font-size: 13px; }
   #p-size { display: grid; grid-template-columns: repeat(5, 1fr); gap: 6px; }
-  #p-size button { background: transparent; border: 1px solid var(--line); border-radius: 8px; padding: 8px 0; font-family: var(--mono); font-size: 12px; }
-  #p-size button.on { background: var(--ink); color: #111; border-color: var(--ink); }
-  .acts { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 18px; }
-  .acts button { border-radius: 10px; padding: 12px 10px; font-size: 13px; background: rgba(255, 255, 255, .06); border: 1px solid var(--line); }
-  .acts button.on { border-color: var(--warm); color: var(--warm); }
-  #p-try { grid-column: 1 / -1; background: var(--ink) !important; color: #111; font-weight: 600; }
-  #p-add { grid-column: 1 / -1; background: linear-gradient(90deg, #ffcf9a, #ffb36b) !important; color: #111; font-weight: 700; border: 0 !important; }
-  #p-close { position: fixed; z-index: 4; top: 18px; left: 22px; opacity: 0; pointer-events: none; transition: opacity .4s ease .3s; }
+  #p-size button { background: #fff; border: 1px solid var(--line); border-radius: 8px; padding: 10px 0; font-size: 12.5px; }
+  #p-size button.on { border-color: var(--ink); box-shadow: inset 0 0 0 1px var(--ink); }
+  #p-add { width: 100%; margin-top: 20px; background: var(--ink); color: #fff; border: 0; border-radius: 10px; padding: 15px; font-size: 14px; font-weight: 500; }
+  #p-add:hover { background: #000; }
+  .acts { display: flex; gap: 8px; margin-top: 10px; flex-wrap: wrap; }
+  .acts button { flex: 1; min-width: 110px; background: #fff; border: 1px solid var(--line); border-radius: 10px; padding: 11px 8px; font-size: 12.5px; }
+  .acts button.on { border-color: var(--ink); }
+  .ship { margin-top: 18px; border-top: 1px solid var(--line); padding-top: 14px; font-size: 12.5px; color: #45413c; line-height: 1.75; }
+  .ship b { font-weight: 500; color: var(--ink); }
+  #p-id { font-size: 11px; color: var(--mute); margin-top: 14px; }
+  #p-close { position: fixed; z-index: 5; top: 76px; left: 20px; opacity: 0; pointer-events: none; background: var(--paper); transition: opacity .4s ease .3s; }
   body.in-studio #p-close { opacity: 1; pointer-events: auto; }
-  #studio-hint { position: fixed; z-index: 3; left: 50%; bottom: 22px; transform: translateX(-50%); font-family: var(--mono); font-size: 10px; letter-spacing: .16em; text-transform: uppercase; color: var(--mute); opacity: 0; transition: opacity .4s ease .6s; pointer-events: none; white-space: nowrap; }
+  #studio-hint { position: fixed; z-index: 3; left: 24px; bottom: 22px; font-size: 12px; color: var(--mute); opacity: 0; transition: opacity .4s ease .5s; pointer-events: none; }
   body.in-studio #studio-hint { opacity: 1; }
-  .fly { position: fixed; z-index: 9; width: 16px; height: 16px; border-radius: 50%; pointer-events: none; box-shadow: 0 0 20px rgba(255, 207, 154, .8);
+  #toast { position: fixed; z-index: 9; left: 50%; top: 74px; transform: translate(-50%, -10px); background: var(--ink); color: #fff; padding: 10px 16px; border-radius: 999px; font-size: 13px;
+    opacity: 0; transition: opacity .25s, transform .35s; pointer-events: none; }
+  #toast.on { opacity: 1; transform: translate(-50%, 0); }
+  .fly { position: fixed; z-index: 9; width: 14px; height: 14px; border-radius: 50%; pointer-events: none; box-shadow: 0 2px 10px rgba(0, 0, 0, .25);
     animation: fly .8s cubic-bezier(.5, -.4, .7, 1) forwards; }
-  @keyframes fly { to { transform: translate(var(--dx), var(--dy)) scale(.4); opacity: .3; } }
+  @keyframes fly { to { transform: translate(var(--dx), var(--dy)) scale(.5); opacity: .4; } }
 
-  /* loader */
-  #loader { position: fixed; inset: 0; z-index: 10; background: #050608; display: grid; place-items: center; transition: opacity 1s ease, visibility 1s; }
+  #loader { position: fixed; inset: 0; z-index: 10; background: #f4f2ee; display: grid; place-items: center; transition: opacity .9s ease, visibility .9s; }
   #loader.done { opacity: 0; visibility: hidden; }
   #loader div { text-align: center; }
-  #loader b { font-weight: 300; letter-spacing: .6em; padding-left: .6em; font-size: 20px; }
+  #loader b { font-family: var(--serif); font-weight: 400; letter-spacing: .4em; padding-left: .4em; font-size: 26px; }
   #load-track { width: 200px; height: 1px; background: var(--line); margin: 22px auto 12px; overflow: hidden; }
-  #load-bar { height: 100%; background: var(--warm); transform-origin: left; transform: scaleX(0); transition: transform .4s ease; }
-  #load-label { font-family: var(--mono); font-size: 10px; letter-spacing: .2em; text-transform: uppercase; color: var(--mute); }
+  #load-bar { height: 100%; background: var(--ink); transform-origin: left; transform: scaleX(0); transition: transform .4s ease; }
+  #load-label { font-size: 12px; color: var(--mute); }
 
-  @media (max-width: 720px) {
+  @media (max-width: 760px) {
+    #bar { height: 54px; gap: 12px; padding: 0 14px; }
+    #logo { font-size: 18px; }
+    #nav { display: none; }
     #hint { display: none; }
-    #brand { top: 18px; left: 16px; } #brand span { display: none; }
-    #top-r { top: 12px; right: 12px; }
-    #meter { left: 16px; bottom: 18px; }
-    #panel { top: auto; bottom: 12px; right: 12px; left: 12px; width: auto; transform: translateY(40px); padding: 18px; max-height: 52vh; overflow: auto; }
-    body.in-studio #panel { transform: none; }
-    #p-name { font-size: 24px; } #p-desc { display: none; }
+    #where { left: 12px; bottom: 12px; min-width: 0; }
+    #panel { top: auto; left: 10px; right: 10px; bottom: 10px; width: auto; max-height: 50vh; padding: 18px; transform: translateY(30px); }
+    #p-desc, .ship { display: none; }
+    #p-name { font-size: 22px; }
+    #p-close { top: 64px; left: 12px; }
     #studio-hint { display: none; }
   }
 </style>
 </head>
 <body>
-<canvas id="scene" aria-label="ATRIUM: four towers of lit display windows, viewed from the centre of their courtyard"></canvas>
+<canvas id="scene" aria-label="ATRIUM: a courtyard of four stone towers whose lit windows each display a product"></canvas>
 
 <div id="loader"><div><b>ATRIUM</b><div id="load-track"><div id="load-bar"></div></div><div id="load-label">loading</div></div></div>
+<div id="title"><div><h1>ATRIUM</h1><p>The vertical department store</p></div></div>
 
-<div id="title"><div><h1>ATRIUM</h1><p>Fall into the collection</p></div></div>
+<header id="bar" class="ui">
+  <div id="logo">ATRIUM</div>
+  <nav id="nav" class="fall-only" aria-label="Departments">
+    <a href="#outer">Outerwear &amp; Knit</a><a href="#acc">Shoes &amp; Accessories</a><a href="#dress">Dresses &amp; Couture</a><a href="#home">Home</a>
+  </nav>
+  <div class="tools">
+    <button class="btn fall-only" id="flip">Look up ↑</button>
+    <button class="btn" id="bag">Bag <span id="bag-n">0</span></button>
+  </div>
+</header>
 
-<div class="hud fall-only" id="brand"><b>ATRIUM</b><span>Four towers · one endless collection</span></div>
-<div class="hud" id="top-r">
-  <button class="chip fall-only" id="flip">Look up ↑</button>
-  <span class="chip" id="bag">Bag <i id="bag-n">0</i></span>
+<div id="where" class="ui fall-only">
+  <small>Level <span id="depth">0</span> · <span id="coll">Autumn Edit</span></small>
+  <b id="dept">Outerwear &amp; Knit</b>
+  <span>Every window is a product</span>
 </div>
-<div class="hud fall-only" id="meter">
-  <small>Level</small>
-  <div id="depth">−0000</div>
-  <div class="row"><b id="dept">Outerwear</b><span id="coll">Slate &amp; Ember</span></div>
-  <div id="speedbar"><div id="speed"></div></div>
-</div>
-<div class="hud fall-only" id="hint">
-  <kbd>Scroll</kbd> to fall &nbsp;·&nbsp; <kbd>Drag</kbd> to turn<br>
-  <kbd>F</kbd> look up / down &nbsp;·&nbsp; <kbd>Click</kbd> any window
-</div>
+<div id="hint" class="ui fall-only">Scroll to go down · drag to turn<br>Click any window to open it</div>
 <div id="tag"></div>
+<div id="toast"></div>
 
-<button class="chip" id="p-close">← Back to the atrium</button>
+<button class="btn" id="p-close">← Back to the store</button>
 <aside id="panel" aria-label="Product">
   <div id="p-dept"></div>
+  <div id="p-brand"></div>
   <h2 id="p-name"></h2>
   <div id="p-price"></div>
   <p id="p-desc"></p>
   <div class="lbl"><span>Colour</span></div>
   <div id="p-sw"></div>
-  <div class="lbl"><span>Size</span><span id="p-fit"></span></div>
-  <div id="p-size"></div>
-  <div class="acts">
-    <button id="p-try">Try it on the model</button>
-    <button id="p-spin">Turntable</button>
-    <button id="p-detail">Fabric close-up</button>
-    <button id="p-add">Add to bag</button>
+  <div id="size-row">
+    <div class="lbl"><span>Size</span><span id="p-fit"></span></div>
+    <div id="p-size"></div>
   </div>
-  <div class="lbl" style="margin-top:16px"><span id="p-id"></span></div>
+  <button id="p-add">Add to bag</button>
+  <div class="acts">
+    <button id="p-try">Show on the form</button>
+    <button id="p-spin">Rotate 360°</button>
+    <button id="p-detail">Close-up</button>
+  </div>
+  <div class="ship"><b>Free delivery</b> in 2–4 working days · <b>Free returns</b> within 30 days<br>Pay in 4 interest-free instalments</div>
+  <div id="p-id"></div>
 </aside>
-<div id="studio-hint">Drag to turn · scroll to zoom into the weave · Esc to go back</div>
+<div id="studio-hint">Drag to turn · scroll to zoom · Esc to go back</div>
 
 <script type="module" src="./src/main.js"></script>
 </body>

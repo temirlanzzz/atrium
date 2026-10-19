@@ -1,7 +1,7 @@
-// Garment and mannequin geometry, built procedurally around one body.
+// Garment geometry, built procedurally around one body.
 // Units are meters, feet at y = 0, front facing +Z. Every garment is offset
-// outward from the same body measurements, so it fits the studio mannequin
-// and can also hang as a "ghost mannequin" in the tower windows.
+// outward from the same body measurements, so it fits the dress form and can
+// also hang as a "ghost mannequin" on a rail.
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import { RoundedBoxGeometry } from 'three/examples/jsm/geometries/RoundedBoxGeometry.js';
@@ -122,42 +122,6 @@ const folds = (amp, k1 = 7, k2 = 12, ph = 0) => (th, y, s) => {
 };
 const sleeveFolds = (amp) => (th, t) => amp * (1 + .6 * Math.sin(th * 5 + t * 19) + .4 * Math.sin(th * 3 - t * 31 + 1.1)) * (.4 + t);
 
-/* ---------------- body ---------------- */
-export const ARM = [V(.15, 1.43), V(.2, 1.4), V(.27, 1.16, -.01), V(.315, .92, .02), V(.33, .82, .03)];
-const LEG = [V(.09, .9), V(.095, .7, .005), V(.1, .5, .012), V(.1, .33), V(.1, .085, -.01)];
-
-function footGeometry(scale = 1, x = 0) {
-  const g = loft([
-    { y: 0, a: .03, b: .035, z: -.055 }, { y: .02, a: .04, b: .05, z: -.06 }, { y: .07, a: .046, b: .058, z: -.062 },
-    { y: .13, a: .05, b: .048, z: -.052 }, { y: .19, a: .052, b: .04, z: -.045 }, { y: .24, a: .048, b: .032, z: -.036 },
-    { y: .275, a: .036, b: .024, z: -.03 }, { y: .292, a: .012, b: .012, z: -.028 }
-  ], { seg: 28, steps: 3, capStart: true, capEnd: true });
-  g.rotateX(Math.PI / 2);
-  g.translate(0, 0, -.07);
-  g.scale(scale, scale, scale);
-  g.translate(x, 0, 0);
-  return g;
-}
-
-export function mannequinGeometry() {
-  const torso = loft([
-    { y: .8, a: .14, b: .1 }, { y: .86, a: .165, b: .115 }, { y: .95, a: .18, b: .12 }, { y: 1.05, a: .148, b: .103 },
-    { y: 1.18, a: .158, b: .112 }, { y: 1.3, a: .172, b: .122, z: .01 }, { y: 1.39, a: .188, b: .108 },
-    { y: 1.45, a: .16, b: .08, p: 2.6 }, { y: 1.5, a: .07, b: .06 }, { y: 1.6, a: .052, b: .052 }, { y: 1.64, a: .05, b: .05 }
-  ], { seg: 48, steps: 5, capStart: true, capEnd: true });
-  const arms = [ARM, mirror(ARM)].map(p => sweep(p, [.05, .053, .04, .031, .027], { seg: 20, steps: 30, roundEnd: true }));
-  const legs = [LEG, mirror(LEG)].map(p => sweep(p, [.088, .072, .052, .054, .036], { seg: 22, steps: 30 }));
-  const head = new THREE.SphereGeometry(.1, 32, 24);
-  head.scale(.82, 1.15, .95); head.translate(0, 1.74, .01);
-  const shoulders = [-1, 1].map(s => { const b = new THREE.SphereGeometry(.058, 20, 14); b.translate(s * .175, 1.41, 0); return b; });
-  return merge([torso, ...arms, ...legs, head, ...shoulders, footGeometry(1, -.1), footGeometry(1, .1)]);
-}
-
-export function standGeometry() {
-  const base = new THREE.CylinderGeometry(.32, .34, .04, 64); base.translate(0, .02, 0);
-  return base;
-}
-
 /* ---------------- garments ---------------- */
 function longSleeves(r0 = .07, rMid = .078, rEnd = .06, cuff = true, amp = .006) {
   const pts = [V(.13, 1.44), V(.2, 1.405), V(.27, 1.16, -.01), V(.315, .93, .02)];
@@ -250,42 +214,6 @@ export function pants() {
   return merge([waist, band, ...legs]);
 }
 
-/* ---------------- accessories ---------------- */
-export function shoeUpper() {
-  const one = (x, r) => {
-    const g = loft([
-      { y: 0, a: .032, b: .036, z: -.058 }, { y: .02, a: .042, b: .052, z: -.062 }, { y: .07, a: .048, b: .058, z: -.064 },
-      { y: .13, a: .052, b: .048, z: -.054 }, { y: .19, a: .054, b: .04, z: -.047 }, { y: .24, a: .05, b: .032, z: -.038 },
-      { y: .275, a: .038, b: .024, z: -.032 }, { y: .292, a: .012, b: .012, z: -.03 }
-    ], { seg: 28, steps: 3, capStart: true, capEnd: true });
-    g.rotateX(Math.PI / 2); g.translate(0, .01, -.14); g.rotateY(r); g.translate(x, 0, 0);
-    return g;
-  };
-  return merge([one(-.075, .12), one(.075, -.05)]);
-}
-
-export function shoeSole() {
-  const one = (x, r) => {
-    const g = loft([{ y: -.006, a: .036, b: .013, z: -.013, p: 3 }, { y: .05, a: .05, b: .014, z: -.013, p: 3 }, { y: .2, a: .058, b: .013, z: -.012, p: 3 },
-      { y: .28, a: .043, b: .012, z: -.013, p: 3 }, { y: .302, a: .015, b: .01, z: -.014, p: 3 }], { seg: 28, steps: 3, capStart: true, capEnd: true });
-    g.rotateX(Math.PI / 2); g.translate(0, 0, -.14); g.rotateY(r); g.translate(x, 0, 0);
-    return g;
-  };
-  return merge([one(-.075, .12), one(.075, -.05)]);
-}
-
-export function bag() {
-  const s = new THREE.Shape();
-  const w = .17, h = .3, r = .03;
-  s.moveTo(-w + r, 0); s.lineTo(w - r, 0); s.quadraticCurveTo(w, 0, w, r); s.lineTo(w * .86, h - r);
-  s.quadraticCurveTo(w * .86, h, w * .86 - r, h); s.lineTo(-w * .86 + r, h); s.quadraticCurveTo(-w * .86, h, -w * .86, h - r);
-  s.lineTo(-w, r); s.quadraticCurveTo(-w, 0, -w + r, 0);
-  const body = new THREE.ExtrudeGeometry(s, { depth: .1, bevelEnabled: true, bevelThickness: .012, bevelSize: .01, bevelSegments: 4, curveSegments: 8 });
-  body.translate(0, 0, -.05);
-  const handles = [-.05, .05].map(z => sweep([V(-.09, .29, z), V(-.07, .42, z), V(.07, .42, z), V(.09, .29, z)], [.008, .008, .008, .008], { seg: 8, steps: 24 }));
-  return merge([body, ...handles]);
-}
-
 export function foldedStack(n = 4, seed = 1) {
   const parts = [];
   let y = 0, rnd = seed;
@@ -309,4 +237,3 @@ export function hanger() {
 // Hang point for each garment type (shoulder height or waistband).
 export const HANG_Y = { tee: 1.47, sweater: 1.48, hoodie: 1.49, coat: 1.49, dress: 1.47, pants: 1.05 };
 export const BUILDERS = { tee, sweater, hoodie, coat, dress, pants };
-export const FABRIC = { tee: 'jersey', sweater: 'knit', hoodie: 'jersey', coat: 'weave', dress: 'weave', pants: 'denim' };

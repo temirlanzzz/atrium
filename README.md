@@ -1,39 +1,42 @@
 # ATRIUM
 
-A vertical fashion store built with three.js. You stand in the middle of a
-square courtyard formed by four towers, and every lit window is a garment.
-Scroll and you fall: the towers go on forever, into the dark. Click a window
-and the camera flies inside; the piece opens in a fitting studio, where it
-jumps from a rail onto a mannequin. You can turn it, zoom into the weave, and
-change the colour and size.
+A vertical department store built with three.js. You stand in the middle of a
+square courtyard formed by four stone towers, and every lit shop window is a
+product. Scroll and you go down: the towers continue forever, into the mist.
+Click a window and the camera flies in, and the product opens on a real product
+page. Turn it in a bright photo studio, zoom in, switch between its real
+colourways, pick a size and add it to your bag.
 
 **Live:** https://temirlan.work/atrium/ · https://temirlanzzz.github.io/atrium/
 
 ## What is in it
 
-- **Four towers, four departments.** Outerwear, knit and jersey, dresses,
-  and denim and trousers each face the courtyard, with vertical neon signs on
-  the corner pillars. Every run of 9 floors is a new collection with its own
-  palette.
-- **An endless fall.** A ring of 24 floors is recycled as you move, and
+- **Real products.** Sneakers, a chronograph watch, aviator sunglasses, a
+  corset, a velvet sofa, chairs, a pouf, a lamp, plants and vases are 3D
+  scans from the Khronos glTF sample library (see [CREDITS.md](CREDITS.md)).
+  Their real `KHR_materials_variants` colourways (Midnight / Beach / Street
+  for the sneaker, five velvets for the sofa) become the colour options on
+  the product page.
+- **Four departments.** Each tower is one department: Outerwear & Knit,
+  Shoes & Accessories, Dresses & Couture, and Home. Each window is laid out
+  around its hero product: a rail with oak shelves and folded stacks, a
+  sneaker wall, accessory plinths, or a furnished vignette.
+- **Real light.** An overcast HDRI sky lights the courtyard and is reflected
+  in the glass. Window interiors have oak floors, warm ceiling lights and
+  contact shadows. The product page is a seamless studio sweep with soft
+  shadows.
+- **An endless store.** A ring of 24 floors is recycled as you move, and
   the world origin is rebased every 60 floors, so precision never degrades.
   The catalog is deterministic: window `(floor, side, column)` always shows
   the same product.
-- **Procedural garments.** Coats, hoodies, sweaters, tees, dresses and
-  trousers are lofted around a single body measurement, with folds that only
-  push outward. The same mesh hangs as a "ghost mannequin" in a window and
-  fits the studio mannequin exactly. Fabrics use `MeshPhysicalMaterial`
-  sheen, with weave, knit, denim and jersey normal maps drawn on a canvas.
-- **Instanced everything.** Each window holds a garment, a hanger or a
-  lacquered dress form, oak shelves, four folded stacks, sneakers and
-  sometimes a tote. That is roughly 15 draw calls for about 480 windows.
-  Garments sway in the vertex shader, harder when you fall fast.
-- **Film look.** ACES tone mapping, a PMREM room environment, bloom on the
-  window light, then a grade pass whose vignette and chromatic fringe grow
-  with speed, plus speed streaks and an FOV kick.
-
-No textures, models or fonts are downloaded. Everything is generated at
-load time.
+- **Cheap at scale.** The windows use simplified copies of each scan, with
+  one `InstancedMesh` per part and colourway. Glass that uses transmission
+  on the product page becomes plain reflective glass in the windows, so
+  hundreds of products cost a few dozen draw calls. Full-detail scans load
+  only when you open a product.
+- **Garments** (coats, knits, dresses, denim) are still procedural, lofted
+  around one body with a real woven-fabric normal map. They are the least
+  photoreal part, and the first thing to replace with real garment scans.
 
 ## Controls
 
@@ -42,7 +45,8 @@ load time.
 | Scroll / swipe | fall (or climb back up) |
 | Drag, ← → | turn |
 | `F` or the button | look up / look down |
-| Click a window | open it in the fitting studio |
+| Click a window | open its product page |
+| Department links | turn to face that tower |
 | Studio | drag to orbit, scroll to zoom, `Esc` to go back |
 
 ## Run
@@ -63,4 +67,6 @@ software GPU:
 npm run build && npm run preview &
 CHROME_PATH=/path/to/chrome node scripts/capture.mjs --video   # → out/atrium-demo.mp4
 node scripts/capture.mjs --stills 4.6                          # → out/still-4.6.png
+node scripts/capture.mjs --shot sofa --stills 11               # open a sofa and grab its product page
+node scripts/capture.mjs --shot reel --video                   # the portfolio reel
 ```
